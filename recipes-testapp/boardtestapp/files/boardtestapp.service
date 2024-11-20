@@ -1,0 +1,17 @@
+[Unit]
+Description=boardtestapp Test Application
+After=multi-user.target weston.service network.target
+Requires=weston.service
+
+[Service]
+ExecStart=/usr/bin/boardtestapp -platform wayland
+Restart=always
+RestartSec=5s
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=QT_QPA_PLATFORM=wayland
+Environment=XDG_RUNTIME_DIR=/run/user/0
+Environment="NO_AUDIT=1"
+User=root
+
+[Install]
+WantedBy=graphical.target
