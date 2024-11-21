@@ -10,7 +10,8 @@ RestartSec=5s
 Environment=WAYLAND_DISPLAY=wayland-0
 Environment=QT_QPA_PLATFORM=wayland
 Environment=XDG_RUNTIME_DIR=/run/user/0
-Environment="NO_AUDIT=1"
+StandardOutput=journal+console
+StandardError=journal+console
 User=root
 
 [Install]
