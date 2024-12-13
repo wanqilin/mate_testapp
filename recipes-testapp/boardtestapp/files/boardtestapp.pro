@@ -1,4 +1,4 @@
-QT += core gui multimedia multimediawidgets network
+QT += core gui multimedia multimediawidgets network bluetooth
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -18,32 +18,45 @@ win32 {
             -lopencv_imgcodecs451 \
             -lopencv_videoio451 \
             -lopencv_objdetect451 \
-            -lsetupapi
+            -lsetupapi \
+            -liphlpapi \
+            -lws2_32
 } else:unix {
     DEFINES += OS_UNIX
-    INCLUDEPATH += /usr/include/opencv4
+    INCLUDEPATH += /usr/include/opencv4 \
+                   /mnt/disk2/nxp/boundarydeviceEx/build/tmp/sysroots-components/cortexa53-mx8mp/gstreamer1.0/usr/include/gstreamer-1.0 \
+                   /mnt/disk2/nxp/boundarydeviceEx/build/tmp/sysroots-components/cortexa53/glib-2.0/usr/include/glib-2.0 \
+                   /mnt/disk2/nxp/boundarydeviceEx/build/tmp/sysroots-components/cortexa53/glib-2.0/usr/lib/glib-2.0/include
+
     LIBS += -L/usr/lib \
             -lopencv_core \
             -lopencv_imgproc \
             -lopencv_highgui \
             -lopencv_imgcodecs \
             -lopencv_videoio \
-            -lopencv_objdetect
+            -lopencv_objdetect \
+            -lgstreamer-1.0 \
+            -lgobject-2.0 \
+            -lglib-2.0
 }
 
 SOURCES += \
     # OpenCVWindow.cpp \
+    hotplugworkthread.cpp \
     main.cpp \
     mainwindow.cpp \
-    opencvfacerecognition.cpp \
-    osdupdatethread.cpp
+    opencvcamerathread.cpp \
+    osdeventwork.cpp \
+    wirelessdeviceworkthread.cpp
 
 HEADERS += \
     # OpenCVWindow.h \
+    hotplugworkthread.h \
     mainwindow.h \
-    opencvfacerecognition.h \
-    osdupdatethread.h \
-    sw_app_config.h
+    opencvcamerathread.h \
+    osdeventwork.h \
+    sw_app_config.h \
+    wirelessdeviceworkthread.h
 
 
 

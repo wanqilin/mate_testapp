@@ -1,7 +1,6 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include "sw_app_config.h"
 #include <QLCDNumber>
 #include <QLabel>
 #include <QLineEdit>
@@ -17,28 +16,23 @@
 #include <QCameraInfo>
 #include <QGroupBox>
 #include <QBoxLayout>
-#include <QNetworkConfigurationManager>
 #include <opencv2/core/core.hpp>
-#ifdef OS_UNIX
-#include <dirent.h>
-#endif
-#ifdef OS_WINDOWS
-#include <windows.h>
-#include <QDir>
-#include <QFileInfo>
-#include <dbt.h>
-#include <SetupAPI.h>
-#include <initguid.h>
-#include <devguid.h>
-#endif
-#include "osdupdatethread.h"
+#include <QFileDialog>
+#include <QMediaPlayer>
+#include "sw_app_config.h"
+#include "wirelessdeviceworkthread.h"
+#include "hotplugworkthread.h"
+#include "opencvcamerathread.h"
+#include "osdeventwork.h"
 
 using namespace cv;
 using namespace std;
 
 //class OpenCVWindow;
-class OpenCVfaceRecognition;
-class OSDUpdateThread;
+class OpenCVCameraThread;
+class WirelessDeviceWorkThread;
+class HotPlugWorkThread;
+class OsdEventWork;
 
 class MainWindow : public QMainWindow
 {
@@ -52,31 +46,39 @@ public:
     ~MainWindow();
 
     void CameraInit();
-
 signals:
-    void StartOpenCVfaceRecognition(void);
-    void StartOSDThread(void);
-
-protected:
-#ifdef OS_WINDOWS
-    bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
-#endif
+    void AudioRecordClickedSignal(QString *sAudiofileName);
+    void AudioStopClickedSignal(void);
+    void AudioPlayClickedSignal(QString *sAudiofileName);
 
 private slots:
     void PrintText(const QString &text);
     void captureImage();
     void displayImage(int id, const QImage &preview);
     //void GotoOpenCVWindow();
-    void OpenCVfaceRecognitionHandle();
-    void TimerHandle();
-    void OSDUpdate();
+    void ClockUpdate(void);
     void DrawlanStatusUpdate(bool isOnline);
+    void wifiListUpdate(const QStringList &wifiList);
+    void UsbDeviceUpdate(int usbCnt);
+    void AudioRecordDurationUpdate(qint64 duration);
+    void AudioRecordClicked();
+    void AudioStopClicked();
+    void AudioPlayClicked();
+    void AudioPlayStatusUpdate(QMediaPlayer::State newState);
+    void AudioPlayMediaStatusUpdate(QMediaPlayer::MediaStatus newState);
+    void btListUpdate(const QStringList &btList);
 private:
     bool blanstatus;
+    QString AudioRecordfileName;
+    QString AudioPlayfileName;
     QPushButton *captureButton;
     QPushButton *OpenCVButton;
+    QPushButton *AudioPlayButton;
+    QPushButton *AudioRecordButton;
+    QPushButton *stopRecordButton;
     QLCDNumber *lcdnumber;
-    QListWidget *listWidget;
+    QListWidget *WifilistWidget;
+    QListWidget *BtlistWidget;
     QLabel *displayTitle;
     QTimer *m_timer;
     QCamera *camera;
@@ -93,26 +95,23 @@ private:
     QGroupBox *usbbox;
     QBoxLayout *applayout;
     QHBoxLayout *usblayout;
+    QVBoxLayout *Audiolayout;
     //OpenCVWindow *pOpenCVWindow;
-    OpenCVfaceRecognition *processor;
-    OSDUpdateThread* osdupdatethread;
-    QThread* qthread;
-    //QNetworkConfigurationManager *networkManager;
+    OpenCVCameraThread *pOpenCVCameraThread;
+    WirelessDeviceWorkThread *pWirelessDeviceWorkThread;
+    HotPlugWorkThread *pHotPlugWorkThread;
+    QThread *pOsdEventThread;
+    OsdEventWork *pOsdEventWork;
 
     void DrawOSDInterface(void);
     void SetSignalAndSLot(void);
     QStringList getWifiList();
-    void wifiListUpdate();
-    void ClockUpdate();
     void DrawClockPage();
     void DrawWifiPage();
     void DrawCameraPage();
-    void DrawListenEventPage();
     void InitVariable();
-    int getUSBDeviceCount();
-#ifdef OS_UNIX
-    bool isUsbStorage(const std::string &devicePath);
-    void USBDeviceUpdate();
-#endif
+    void DrawAudioPage();
+    void DrawBtPage();
+    void DrawEventListenPage();
 };
 #endif // MAINWINDOW_H

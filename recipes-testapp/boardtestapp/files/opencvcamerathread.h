@@ -1,5 +1,5 @@
-#ifndef OPENCVFACERECOGNITION_H
-#define OPENCVFACERECOGNITION_H
+#ifndef OPENCVCAMERATHREAD_H
+#define OPENCVCAMERATHREAD_H
 
 #include <QObject>
 #include <QThread>
@@ -10,7 +10,7 @@ using namespace std;
 using namespace cv;
 
 
-class OpenCVfaceRecognition : public QThread
+class OpenCVCameraThread : public QThread
 {
     Q_OBJECT
 public:
@@ -20,8 +20,8 @@ public:
    #define FRONTAL_FACE_FILE "/usr/share/opencv4/haarcascades/haarcascade_frontalface_alt2.xml"
 #endif
     #define MY_FACE_STORE "./MyFaceStore.xml"
-    OpenCVfaceRecognition(QObject *parent = nullptr);
-    ~OpenCVfaceRecognition();
+    OpenCVCameraThread(QObject *parent = nullptr);
+    ~OpenCVCameraThread();
     void run() override;
 
 signals:
@@ -32,4 +32,4 @@ private:
 
 };
 
-#endif // OPENCVFACERECOGNITION_H
+#endif // OPENCVCAMERATHREAD_H

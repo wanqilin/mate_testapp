@@ -1,27 +1,14 @@
 #include "mainwindow.h"
 #include "OpenCVWindow.h"
-#include "osdupdatethread.h"
-#include "opencvfacerecognition.h"
 #include <QTimer>
 #include <QtDebug>
 #include <QDateTime>
 #include <QPalette>
 #include <QVBoxLayout>
-
-#include <QProcess>
 #include <QGroupBox>
 
 using namespace std;
 
-#ifdef OS_WINDOWS
-// define GUID
-DEFINE_GUID(GUID_DEVINTERFACE_USB_DEVICE,
-            0xA5DCBF10L, 0x6530, 0x11D2, 0x90, 0x1F, 0x00, 0xC0, 0x4F, 0xB9, 0x51, 0xED);
-
-// define GUID_DEVINTERFACE_DISK check usb disk
-DEFINE_GUID(GUID_DEVINTERFACE_DISK,
-            0x53f56307,0xb6bf,0x11d0,0x94,0xf2,0x00,0xa0,0xc9,0x1e,0xfb,0x8b);
-#endif
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -31,29 +18,42 @@ MainWindow::MainWindow(QWidget *parent)
     this->setGeometry(0,0,APP_WIDTH,APP_HEIGH);
     InitVariable();
 
-    //SetTimer
-    m_timer = new QTimer(this);
-    m_timer->setSingleShot(false);  //Non-single trigger
-    m_timer->setInterval( 1*1000 );
-    connect(m_timer, SIGNAL(timeout()), this, SLOT(TimerHandle()));
-    m_timer->start();
+    DrawOSDInterface();
 
+    pOsdEventThread = new QThread();
+    pOsdEventWork = new OsdEventWork(this);
+    pOsdEventWork->moveToThread(pOsdEventThread);
+    pOsdEventThread->start();
 
-    osdupdatethread = new OSDUpdateThread();
-    qthread = new QThread(this);
-    osdupdatethread->moveToThread(qthread);
-    qthread->start();
+    pWirelessDeviceWorkThread = new WirelessDeviceWorkThread();
+    pWirelessDeviceWorkThread->start();
+
+    pHotPlugWorkThread = new HotPlugWorkThread();
+    pHotPlugWorkThread->start();
+
+    pOpenCVCameraThread = new OpenCVCameraThread();
+    pOpenCVCameraThread->start();
 
     SetSignalAndSLot();
-    DrawOSDInterface();
 }
 
 MainWindow::~MainWindow()
-{    
-    //processor->requestInterruption();
-    //processor->wait();
-    //qthread->requestInterruption();
-    //qthread->->wait();
+{
+    pWirelessDeviceWorkThread->quit();
+    pWirelessDeviceWorkThread->wait();
+    pWirelessDeviceWorkThread->deleteLater();
+
+    pHotPlugWorkThread->quit();
+    pHotPlugWorkThread->wait();
+    pHotPlugWorkThread->deleteLater();
+
+    pOpenCVCameraThread->quit();
+    pOpenCVCameraThread->wait();
+    pOpenCVCameraThread->deleteLater();
+
+    pOsdEventThread->quit();
+    pOsdEventThread->wait();
+    pOsdEventThread->deleteLater();
 }
 
 void MainWindow::InitVariable(void)
@@ -67,10 +67,9 @@ void MainWindow::DrawOSDInterface(void)
     appbox->setGeometry(0,0,APP_WIDTH,APP_HEIGH);
     applayout = new QBoxLayout(QBoxLayout::TopToBottom,this);
 
-
     this->displayTitle = new QLabel("TestApp",this);
-    this->displayTitle->setGeometry(560,0,200,50);
-    this->displayTitle->setFont(QFont("Arial",14,QFont::Bold));
+    this->displayTitle->setGeometry(530,50,200,50);
+    this->displayTitle->setFont(QFont("Arial",16,QFont::Bold));
     //applayout->addWidget(displayTitle);
     //appbox->setLayout(applayout);
 
@@ -80,25 +79,40 @@ void MainWindow::DrawOSDInterface(void)
     //draw wifi
     DrawWifiPage();
 
-    //Draw Listen event
-    DrawListenEventPage();
+    //draw BT
+    DrawBtPage();
+
+    //Draw Event Listen
+    DrawEventListenPage();
+
+    //Draw Audio
+    DrawAudioPage();
 
     //draw camera
     DrawCameraPage();
-
-    emit StartOSDThread();
 }
 
 void MainWindow::SetSignalAndSLot(void)
 {
-    connect(this,&MainWindow::StartOpenCVfaceRecognition,this,&MainWindow::OpenCVfaceRecognitionHandle);
-    connect(qthread, &QThread::finished, qthread, &QThread::deleteLater);
-    connect(this, &MainWindow::StartOSDThread, osdupdatethread, &OSDUpdateThread::working);
-    connect(osdupdatethread, &OSDUpdateThread::ReDrawOSD,this,&MainWindow::OSDUpdate);
-
-    //listen network connect status
-    //networkManager = new QNetworkConfigurationManager(this);
-    //connect(networkManager, &QNetworkConfigurationManager::onlineStateChanged, this, &MainWindow::DrawlanStatusUpdate);
+    //opencv slot
+    connect(pOpenCVCameraThread,&OpenCVCameraThread::frameProcessed,this,&MainWindow::displayImage);
+    //wifi slot
+    connect(pWirelessDeviceWorkThread, &WirelessDeviceWorkThread::RefreshWifiOSD, this, &MainWindow::wifiListUpdate);
+    //Bt slot
+    connect(pWirelessDeviceWorkThread, &WirelessDeviceWorkThread::RefreshBtOSD, this, &MainWindow::btListUpdate);
+    //Hot Plug Slot
+    connect(pHotPlugWorkThread, &HotPlugWorkThread::RefreshUsbOSD, this, &MainWindow::UsbDeviceUpdate);
+    connect(pHotPlugWorkThread, &HotPlugWorkThread::RefreshEthOSD, this, &MainWindow::DrawlanStatusUpdate);
+    //Audio slot
+    connect(AudioRecordButton, &QPushButton::clicked, this, &MainWindow::AudioRecordClicked);
+    connect(stopRecordButton, &QPushButton::clicked, this, &MainWindow::AudioStopClicked);
+    connect(AudioPlayButton, &QPushButton::clicked, this, &MainWindow::AudioPlayClicked);
+    connect(this,&MainWindow::AudioRecordClickedSignal,pOsdEventWork,&OsdEventWork::recordAudio);
+    connect(this,&MainWindow::AudioStopClickedSignal,pOsdEventWork,&OsdEventWork::stopRecording);
+    connect(this,&MainWindow::AudioPlayClickedSignal,pOsdEventWork,&OsdEventWork::playAudio);
+    connect(pOsdEventWork,&OsdEventWork::RefreshdurationChanged,this,&MainWindow::AudioRecordDurationUpdate);
+    connect(pOsdEventWork,&OsdEventWork::RefreshPlayStatus,this,&MainWindow::AudioPlayStatusUpdate);
+    connect(pOsdEventWork,&OsdEventWork::RefreshMediaPlayStatus,this,&MainWindow::AudioPlayMediaStatusUpdate);
 }
 
 void MainWindow::PrintText(const QString &text)
@@ -106,27 +120,21 @@ void MainWindow::PrintText(const QString &text)
     qDebug()<<text;
 }
 
-void MainWindow::TimerHandle(void)
-{    
-    ClockUpdate();
-}
-
-void MainWindow::OSDUpdate(void)
-{
-    wifiListUpdate();
-#ifdef OS_UNIX
-    USBDeviceUpdate();
-#endif
-}
-
 void MainWindow::DrawClockPage(void)
 {
     //draw lcdnumber
     this->lcdnumber = new QLCDNumber(19,this);
     this->lcdnumber->setSegmentStyle(QLCDNumber::Flat);
-    this->lcdnumber->setGeometry(550,60,180,50);
+    this->lcdnumber->setGeometry(500,160,180,50);
     //applayout->addWidget(lcdnumber);
     //appbox->setLayout(applayout);
+
+    //SetTimer
+    m_timer = new QTimer(this);
+    m_timer->setSingleShot(false);  //Non-single trigger
+    m_timer->setInterval( 1*1000 );
+    connect(m_timer, SIGNAL(timeout()), this, SLOT(ClockUpdate()));
+    m_timer->start();
 }
 
 void MainWindow::ClockUpdate(void)
@@ -139,7 +147,7 @@ void MainWindow::ClockUpdate(void)
 void MainWindow::DrawCameraPage(void)
 {
     QGroupBox *CameraGroupBox = new QGroupBox("Camera",this);
-    CameraGroupBox->setGeometry(940,0,350,600);
+    CameraGroupBox->setGeometry(720,20,560,445);
     QVBoxLayout *Cameralayout = new QVBoxLayout(this);
 
     QPalette palette;
@@ -148,31 +156,33 @@ void MainWindow::DrawCameraPage(void)
     //Camera View
     CameraView = new QLabel("No Data!",this);
     CameraView->setPalette(palette);
-    CameraView->setFixedSize(320,240);
+    CameraView->setFixedSize(540,405);
     CameraView->setAutoFillBackground(true);
     CameraView->setPalette(palette);
     CameraView->setAlignment(Qt::AlignCenter);
 
     //MatchImage
+    /*
     MatchImage = new QLabel("No Data!",this);
     MatchImage->setPalette(palette);
     MatchImage->setFixedSize(320,240);
     MatchImage->setAutoFillBackground(true);
     MatchImage->setPalette(palette);
     MatchImage->setAlignment(Qt::AlignCenter);
-
+    */
     //CaptureButton
+    /*
     captureButton= new QPushButton("Capture", this);
     captureButton->resize(180,50);
-
+    */
    //OpenCVButton
     //OpenCVButton = new QPushButton("GotoOpenCV",this);
     //OpenCVButton->resize(180,50);
     //connect(OpenCVButton,&QPushButton::clicked,this,&MainWindow::GotoOpenCVWindow);
 
     Cameralayout->addWidget(CameraView);
-    Cameralayout->addWidget(MatchImage);
-    Cameralayout->addWidget(captureButton);
+    //Cameralayout->addWidget(MatchImage);
+    //Cameralayout->addWidget(captureButton);
     //Cameralayout->addWidget(OpenCVButton);
 
     CameraGroupBox->setLayout(Cameralayout);
@@ -182,7 +192,6 @@ void MainWindow::DrawCameraPage(void)
 
     //startOpenCVfaceRecognition
     //CameraInit();
-    emit StartOpenCVfaceRecognition();
 }
 
 void MainWindow::CameraInit(void)
@@ -240,13 +249,6 @@ void MainWindow::displayImage(int id, const QImage &preview)
     CameraView->setPixmap(QPixmap::fromImage(preview));
 }
 
-void MainWindow::OpenCVfaceRecognitionHandle(void)
-{
-    qDebug()<<"OpenCVfaceRecognitionHandle!";
-    processor = new OpenCVfaceRecognition();
-    connect(processor,&OpenCVfaceRecognition::frameProcessed,this,&MainWindow::displayImage);
-    processor->start();
-}
 /*
 void MainWindow::GotoOpenCVWindow()
 {
@@ -267,73 +269,63 @@ void MainWindow::DrawWifiPage(void)
 {
     QGroupBox *wifiGroupBox = new QGroupBox("Wifi List",this);
     wifiGroupBox->setGeometry(10,20,220,280);
-    QVBoxLayout *layout = new QVBoxLayout(this);
-    listWidget = new QListWidget(this);
-    listWidget->setFixedSize(150, 200);
-    listWidget->setMinimumSize(150, 200);
-    listWidget->setMaximumSize(200, 220);
-    listWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
-    listWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    layout->addWidget(listWidget);
-    wifiGroupBox->setLayout(layout);
+    QVBoxLayout *Wifilayout = new QVBoxLayout(this);
+    WifilistWidget = new QListWidget(this);
+    WifilistWidget->setFixedSize(150, 200);
+    WifilistWidget->setMinimumSize(150, 200);
+    WifilistWidget->setMaximumSize(200, 220);
+    WifilistWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    WifilistWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    Wifilayout->addWidget(WifilistWidget);
+    wifiGroupBox->setLayout(Wifilayout);
     //applayout->addWidget(wifiGroupBox);
     //appbox->setLayout(applayout);
 
 }
 
-void MainWindow::wifiListUpdate(void)
+void MainWindow::wifiListUpdate(const QStringList &wifiList)
 {
-    this->listWidget->clear();
     //qDebug()<<"wifi list update!";
+    this->WifilistWidget->clear();
+
     // get wifi list
-    QStringList wifiList = getWifiList();
     for (const QString &wifi : wifiList) {
         //qDebug()<<wifi;
-        this->listWidget->addItem(wifi);
+        this->WifilistWidget->addItem(wifi);
     }
 }
 
-QStringList  MainWindow::getWifiList(void)
+void MainWindow::btListUpdate(const QStringList &btList)
 {
-    QStringList wifiList;
-    QProcess process;
-#ifdef OS_WINDOWS
-    process.start("netsh", QStringList() << "wlan" << "show" << "network");
-    process.waitForFinished();
+    qDebug()<<"Bt list update!";
+    this->BtlistWidget->clear();
 
-    QString output = process.readAllStandardOutput();
-    QStringList lines = output.split('\n');
-
-    for (const QString &line : lines) {
-        if (line.contains("SSID")) {
-            QStringList parts = line.split(':');
-            if (parts.size() > 1) {
-                wifiList.append(parts[1].trimmed());
-            }
-        }
+    // get bt list
+    for (const QString &bt : btList) {
+        //qDebug()<<bt;
+        this->BtlistWidget->addItem(bt);
     }
-#else
-    process.start("nmcli", QStringList() << "d" << "wifi" << "list");
-    process.waitForFinished();
-    QTextStream stream(process.readAllStandardOutput());
-
-    while (!stream.atEnd()) {
-        QString line = stream.readLine();
-        
-        if (line.startsWith("SSID")) continue; // skip table
-
-        QStringList fields = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
-        //qDebug()<<fields;
-        if (fields.size() > 0) {
-            wifiList.append(fields[1]); // add SSID
-        }
-    }
-#endif
-
-    return wifiList;
 }
 
-void MainWindow::DrawListenEventPage(void)
+void MainWindow::DrawBtPage(void)
+{
+    QGroupBox *BtGroupBox = new QGroupBox("BT List",this);
+    BtGroupBox->setGeometry(240,20,220,280);
+    QVBoxLayout *Btlayout = new QVBoxLayout(this);
+    BtlistWidget = new QListWidget(this);
+    BtlistWidget->setFixedSize(150, 200);
+    BtlistWidget->setMinimumSize(150, 200);
+    BtlistWidget->setMaximumSize(200, 220);
+    BtlistWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    BtlistWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    Btlayout->addWidget(BtlistWidget);
+    BtGroupBox->setLayout(Btlayout);
+    //applayout->addWidget(wifiGroupBox);
+    //appbox->setLayout(applayout);
+
+}
+
+void MainWindow::DrawEventListenPage(void)
 {
     QGroupBox *ListenEventBox = new QGroupBox("Event",this);
     ListenEventBox->setGeometry(10,320,120,240);
@@ -353,7 +345,7 @@ void MainWindow::DrawListenEventPage(void)
 
     //USB
     usbbox = new QGroupBox(this);
-    usbtxt = new QLabel("USB-1",this);
+    usbtxt = new QLabel("USB",this);
     usbstatus = new QLabel("0",this);
     usbstatus->setFixedSize(20, 20);
     usbstatus->setAlignment(Qt::AlignCenter);
@@ -372,12 +364,6 @@ void MainWindow::DrawListenEventPage(void)
     //applayout->addWidget(ListenEventBox);
     //appbox->setLayout(applayout);
 
-    qDebug()<<"Usb Init Cnt:"<<getUSBDeviceCount();
-    if(getUSBDeviceCount()>0)
-        usbstatus->setStyleSheet("color: white; background-color: green; border-radius: 10px;");
-    else
-        usbstatus->setStyleSheet("color: black; background-color: gray; border-radius: 10px;");
-    usbstatus->setNum(getUSBDeviceCount());
     //blanstatus = networkManager->isOnline();
     //DrawlanStatusUpdate(blanstatus);
 
@@ -386,112 +372,16 @@ void MainWindow::DrawListenEventPage(void)
 void MainWindow::DrawlanStatusUpdate(bool isOnline)
 {
     if (isOnline) {
-        qDebug() << "Network connected!";
+        //qDebug() << "Network connected!";
         lanstatus->setStyleSheet("background-color: green; border-radius: 10px;");
     } else {
-        qDebug() << "Network disconnected!";
+        //qDebug() << "Network disconnected!";
         lanstatus->setStyleSheet("background-color: gray; border-radius: 10px;");
     }
 }
 
-#ifdef OS_WINDOWS
-bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *result){
-    int usbCnt=0;
-
-    if (eventType == "windows_generic_MSG") {
-        MSG *msg = static_cast<MSG *>(message);
-        if (msg->message == WM_DEVICECHANGE) {
-            if (msg->wParam == DBT_DEVICEARRIVAL) {
-                qDebug() << "USB plug-in";
-            } else if (msg->wParam == DBT_DEVICEREMOVECOMPLETE) {    
-                qDebug() << "USB plug-out";
-            }
-
-            usbCnt=getUSBDeviceCount();
-            qDebug()<<"Usb Cnt:"<<usbCnt;
-            if(usbCnt>0)
-                usbstatus->setStyleSheet("color: white; background-color: green; border-radius: 10px;");
-            else
-                usbstatus->setStyleSheet("color: black; background-color: gray; border-radius: 10px;");
-            usbstatus->setNum(usbCnt);
-
-        }
-    }
-    return QWidget::nativeEvent(eventType, message, result);
-}
-
-int MainWindow::getUSBDeviceCount() {
-    // Get usb device info 
-    HDEVINFO deviceInfoSet = SetupDiGetClassDevs(
-         &GUID_DEVINTERFACE_DISK, // &GUID_DEVINTERFACE_USB_DEVICE,
-        nullptr,
-        nullptr,
-        DIGCF_PRESENT | DIGCF_DEVICEINTERFACE
-        );
-
-    if (deviceInfoSet == INVALID_HANDLE_VALUE) {
-        qWarning() << "GetDeviceInfo fail";
-        return -1;
-    }
-
-    // loop device info
-    int deviceCount = 0;
-    SP_DEVINFO_DATA deviceInfoData;
-    deviceInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
-
-    for (int i = 0; SetupDiEnumDeviceInfo(deviceInfoSet, i, &deviceInfoData); i++) {
-        deviceCount++;
-    }
-
-    // clean device info
-    SetupDiDestroyDeviceInfoList(deviceInfoSet);
-    return deviceCount;
-}
-#endif 
-#ifdef OS_UNIX
-bool MainWindow::isUsbStorage(const std::string& devicePath) {
-    std::string usbPath = "/sys/class/block/" + devicePath + "/device";
-    DIR* dir = opendir(usbPath.c_str());
-    if (dir) {
-        // If the device directory exists, it is a USB device
-        closedir(dir);
-        return true;
-    }
-    return false;
-}
-
-int MainWindow::getUSBDeviceCount() {
-    int usbCount = 0;
-
-    DIR* dir = opendir("/sys/class/block");
-    if (!dir) {
-        qDebug() << "Failed to open /sys/class/block";
-        return -1;
-    }
-
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
-        // exclude "." and ".."
-        if (entry->d_name[0] == '.')
-            continue;
-
-        std::string deviceName(entry->d_name);
-
-        if (isUsbStorage(deviceName)) {
-            usbCount++;
-            //qDebug() << "Found USB storage: " << deviceName.c_str();
-        }
-    }
-
-    closedir(dir);
-    return usbCount;
-}
-
-void MainWindow::USBDeviceUpdate(void)
+void MainWindow::UsbDeviceUpdate(int usbCnt)
 {
-    int usbCnt=0;
-
-    usbCnt=getUSBDeviceCount();
     //qDebug()<<"Usb Cnt:"<<usbCnt;
     if(usbCnt>0)
         usbstatus->setStyleSheet("color: white; background-color: green; border-radius: 10px;");
@@ -499,4 +389,79 @@ void MainWindow::USBDeviceUpdate(void)
         usbstatus->setStyleSheet("color: black; background-color: gray; border-radius: 10px;");
     usbstatus->setNum(usbCnt);
 }
+
+void MainWindow::AudioRecordClicked(void)
+{
+#ifdef OS_WINDOWS
+    QString outputFile = "audio_output.wav";
+    AudioRecordfileName = QFileDialog::getSaveFileName(this, "Save Audio File", outputFile, "*.wav");
+#else
+    AudioRecordfileName = "/usr/bin/audio_output.wav";
 #endif
+    emit AudioRecordClickedSignal(&AudioRecordfileName);
+}
+
+void MainWindow::AudioStopClicked(void)
+{
+    emit AudioStopClickedSignal();
+    AudioRecordButton->setText(QString("Record Audio")) ;
+    AudioPlayButton->setText(QString("Play Audio")) ;
+}
+
+void MainWindow::AudioPlayClicked(void)
+{
+#ifdef OS_WINDOWS
+    AudioPlayfileName = QFileDialog::getOpenFileName(this, "Open Audio File", "", "*.mp3 *.wav");
+#else
+    AudioPlayfileName = "/usr/bin/44.1k_2ch_16b_1k_90.wav";
+#endif
+    emit AudioPlayClickedSignal(&AudioPlayfileName);
+}
+
+void MainWindow::AudioRecordDurationUpdate(qint64 duration)
+{
+    //record time
+    qDebug() << "AudioRecord:"<< duration;
+    AudioRecordButton->setText(QString("Recorded %1 seconds").arg(duration / 1000) ) ;
+}
+
+void MainWindow::AudioPlayStatusUpdate(QMediaPlayer::State newState)
+{
+    //record time
+    qDebug() << "AudioPlayStatus:"<< newState;
+    if(newState == QMediaPlayer::PlayingState)
+        AudioPlayButton->setText(QString("Playing")) ;
+}
+
+void MainWindow::AudioPlayMediaStatusUpdate(QMediaPlayer::MediaStatus newState)
+{
+    //record time
+    qDebug() << "AudioPlayMediaStatus:"<< newState;
+    if(newState == QMediaPlayer::EndOfMedia)
+        AudioPlayButton->setText(QString("PlayDone")) ;
+}
+
+
+void MainWindow::DrawAudioPage(void)
+{
+    QGroupBox *AudioGroupBox = new QGroupBox("Audio",this);
+    AudioGroupBox->setGeometry(1030,500,200,200);
+
+    Audiolayout = new QVBoxLayout(this);
+
+    //AddRecord
+    AudioRecordButton = new QPushButton("Record Audio", this);
+    Audiolayout->addWidget(AudioRecordButton);
+
+    //add stopRecord
+    stopRecordButton = new QPushButton("Stop Recording", this);
+    Audiolayout->addWidget(stopRecordButton);
+
+    //AddPlayButton
+    AudioPlayButton = new QPushButton("Play Audio", this);
+    Audiolayout->addWidget(AudioPlayButton);
+
+    AudioGroupBox->setLayout(Audiolayout);
+}
+
+
