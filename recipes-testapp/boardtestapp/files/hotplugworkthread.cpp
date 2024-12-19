@@ -68,13 +68,13 @@ int HotPlugWorkThread::getUSBDeviceCount() {
 #endif
 #ifdef OS_UNIX
 bool HotPlugWorkThread::isUsbStorage(const std::string& devicePath) {
-std::string ueventPath = "/sys/class/block/" + devicePath + "/device/uevent";
+std::string ueventPath = "/sys/class/block/" + devicePath + "/device/uevent";    
     FILE* file = fopen(ueventPath.c_str(), "r");
     if (file) {
         char line[256];
         while (fgets(line, sizeof(line), file)) {
-            //qDebug()<<"usbdevice info:" << line;
-            if (strstr(line, "DEVTYPE=scsi_device")!= nullptr) {
+            //qDebug() << line;
+            if ((strstr(line, "DEVTYPE=scsi_device")!= nullptr)||(strstr(line, "MMC_TYPE=SD")!= nullptr)) {
                 fclose(file);
                 return true;
             }

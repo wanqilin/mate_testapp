@@ -2,12 +2,10 @@
 #define OSDEVENTWORK_H
 
 #include <QObject>
+#include <QTimer>
 #include <QMediaPlayer>
 #include <QMediaRecorder>
 #include <QAudioRecorder>
-#if 0 //#ifdef OS_UNIX
-#include <QMediaEncoderSettings>
-#endif
 #include <QAudioEncoderSettings>
 #include <QFileDialog>
 
@@ -25,15 +23,17 @@ public:
 
 private:
     QString m_sAudiofileName;
+    QTimer *AudioRecordtimer;    
 #ifdef OS_WINDOWS
     QMediaPlayer *audioplayer;
     QMediaRecorder *audiorecorder;
     QAudioRecorder  *m_pAudioRecorder;
 #endif
 #ifdef OS_UNIX
-    GstElement *Recordpipeline;
     GstElement *playingPipeline;
+    GstElement *Recordpipeline;
 #endif
+
 
 public slots:
     void recordAudio(QString *sAudiofileName);
@@ -42,12 +42,13 @@ public slots:
 
 signals:
     void RefreshdurationChanged(const qint64 duration);
-    void RefreshPlayStatus(const QMediaPlayer::State newState);
-    void RefreshMediaPlayStatus(const QMediaPlayer::MediaStatus newState);
+    void RefreshPlayStatus(const qint8 newState);  // 0:stop 1:playing 2:pause
+    void RefreshMediaPlayStatus(const qint8 newState);
 
 private slots:
     void onDurationChanged(qint64 duration);
     void onStateChanged();
     void onMediaStateChanged();
+    void RecordedDuration();    
 };
 #endif // OSDEVENTWORK_H

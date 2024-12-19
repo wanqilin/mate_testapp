@@ -10,6 +10,11 @@ OsdEventWork::OsdEventWork(QWidget *parent)
     gst_init(nullptr, nullptr);
     Recordpipeline = nullptr;
     playingPipeline = nullptr;
+
+    AudioRecordtimer = new QTimer(this);
+    AudioRecordtimer->setSingleShot(false);  //Non-single trigger
+    AudioRecordtimer->setInterval( 1*1000 );   
+    connect(AudioRecordtimer,&QTimer::timeout, this,&OsdEventWork::RecordedDuration);
     #else
     //init class
     audioplayer = new QMediaPlayer(static_cast<QWidget*>(parent));
@@ -26,7 +31,6 @@ OsdEventWork::OsdEventWork(QWidget *parent)
     {
         qDebug() << "AudiocodecName:" << codecName;
     }
-
     connect(audioplayer, &QMediaPlayer::stateChanged, this, &OsdEventWork::onStateChanged);
     connect(audioplayer, &QMediaPlayer::mediaStatusChanged, this, &OsdEventWork::onMediaStateChanged);
     connect(m_pAudioRecorder, &QAudioRecorder::durationChanged, this, &OsdEventWork::onDurationChanged);
@@ -37,7 +41,13 @@ OsdEventWork::~OsdEventWork()
 {
     qDebug() << "~OsdEventThread!";
     stopRecording();
+  
     #if OS_UNIX
+    if (AudioRecordtimer)
+    {
+        AudioRecordtimer->stop();
+        delete AudioRecordtimer; 
+    }     
     if (Recordpipeline) {
         gst_object_unref(Recordpipeline);
     }
@@ -57,9 +67,9 @@ void OsdEventWork::onStateChanged(void)
 
 void OsdEventWork::onMediaStateChanged(void)
 {
-     #ifdef OS_WINDOWS
+    #ifdef OS_WINDOWS
     qDebug() << "audioplayer onMediaStateChanged" << audioplayer->mediaStatus();
-    emit RefreshMediaPlayStatus(audioplayer->mediaStatus());
+    emit RefreshMediaPlayStatus((std::byte)audioplayer->mediaStatus());
     #endif
 }
 
@@ -70,24 +80,20 @@ void OsdEventWork::onDurationChanged(qint64 duration)
     #endif
 }
 
+ #if OS_UNIX
+void OsdEventWork::RecordedDuration()
+ {
+        GstFormat fmt = GST_FORMAT_TIME;
+        gint64 position = 0;
+        gboolean ret = gst_element_query_position(Recordpipeline, fmt, &position);
 
-#if OS_UNIX
-static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data) {
-    switch (GST_MESSAGE_TYPE(msg)) {
-        case GST_MESSAGE_DURATION_CHANGED: {
-            GstElement *pipeline = GST_ELEMENT(data);
-            gint64 duration = 0;
-
-            if (gst_element_query_duration(pipeline, GST_FORMAT_TIME, &duration)) {
-                qDebug() << "Duration changed:" << GST_TIME_AS_SECONDS(duration) << "seconds";
-            }
-            break;
+        if (ret) {
+            qDebug() << "Recorded duration:" << position / GST_MSECOND << "mseconds";
+            emit RefreshdurationChanged(position / GST_MSECOND);
+        } else {
+            qDebug() << "Failed to get position.";
         }
-        default:
-            break;
     }
-    return TRUE;
-}
 #endif
 
 void OsdEventWork:: recordAudio(QString *sAudiofileName)
@@ -97,7 +103,7 @@ void OsdEventWork:: recordAudio(QString *sAudiofileName)
     stopRecording();
 
     QString pipelineDescription =
-        "autoaudiosrc ! audioconvert ! audioresample ! "
+        "autoaudiosrc ! volume volume=5.0 ! audioconvert ! audioresample ! "
         "wavenc ! filesink location=" + m_sAudiofileName;
 
     Recordpipeline = gst_parse_launch(pipelineDescription.toUtf8().constData(), nullptr);
@@ -105,10 +111,9 @@ void OsdEventWork:: recordAudio(QString *sAudiofileName)
          qDebug() << "Failed to create recording pipeline";
         return;
     }
-    GstBus *bus = gst_pipeline_get_bus(GST_PIPELINE(Recordpipeline));
-    gst_bus_add_watch(bus, bus_call, Recordpipeline);
-
+    AudioRecordtimer->start();    
     gst_element_set_state(Recordpipeline, GST_STATE_PLAYING);
+    emit RefreshdurationChanged(0);
     qDebug() << "Recording Audio started..." << m_sAudiofileName;
 
     #else
@@ -152,7 +157,7 @@ void OsdEventWork::playAudio(QString *sAudiofileName)
     m_sAudiofileName = *sAudiofileName;
 #if OS_UNIX
     QString pipelineDescription =
-            "filesrc location=" + m_sAudiofileName + " ! wavparse ! audioconvert ! autoaudiosink";
+            "filesrc location=" + m_sAudiofileName + " ! wavparse ! audioconvert ! volume volume=6.0 ! autoaudiosink";
 
     playingPipeline = gst_parse_launch(pipelineDescription.toUtf8().constData(), nullptr);
     if (!playingPipeline) {
@@ -162,6 +167,7 @@ void OsdEventWork::playAudio(QString *sAudiofileName)
 
     gst_element_set_state(playingPipeline, GST_STATE_PLAYING);
     qDebug() << "Playing audio...";
+    emit RefreshPlayStatus(1); //playing
 
     GstBus *bus = gst_element_get_bus(playingPipeline);
     GstMessage *msg = gst_bus_timed_pop_filtered(bus, GST_CLOCK_TIME_NONE,
@@ -172,6 +178,8 @@ void OsdEventWork::playAudio(QString *sAudiofileName)
     gst_object_unref(bus);
 
     gst_element_set_state(playingPipeline, GST_STATE_NULL);
+    emit RefreshMediaPlayStatus(7);
+
     qDebug() << "Playback finished.";
 #else
     if (!m_sAudiofileName.isEmpty()) {
@@ -185,6 +193,11 @@ void OsdEventWork::playAudio(QString *sAudiofileName)
 void OsdEventWork::stopRecording(void)
 {
     #if OS_UNIX
+    if (AudioRecordtimer)
+    {
+        AudioRecordtimer->stop();    // 停止定时器
+        //delete AudioRecordtimer;   // 删除定时器
+    }    
     if (Recordpipeline)
     {
         GstStateChangeReturn ret = gst_element_set_state(Recordpipeline, GST_STATE_NULL);

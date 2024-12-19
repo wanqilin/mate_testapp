@@ -64,11 +64,10 @@ private slots:
     void AudioRecordClicked();
     void AudioStopClicked();
     void AudioPlayClicked();
-    void AudioPlayStatusUpdate(QMediaPlayer::State newState);
-    void AudioPlayMediaStatusUpdate(QMediaPlayer::MediaStatus newState);
+    void AudioPlayStatusUpdate(qint8 newState);
+    void AudioPlayMediaStatusUpdate(qint8 newState);
     void btListUpdate(const QStringList &btList);
 private:
-    bool blanstatus;
     QString AudioRecordfileName;
     QString AudioPlayfileName;
     QPushButton *captureButton;

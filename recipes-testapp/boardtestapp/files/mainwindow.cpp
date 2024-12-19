@@ -58,7 +58,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::InitVariable(void)
 {
-    blanstatus = false;
+
 }
 
 void MainWindow::DrawOSDInterface(void)
@@ -364,9 +364,6 @@ void MainWindow::DrawEventListenPage(void)
     //applayout->addWidget(ListenEventBox);
     //appbox->setLayout(applayout);
 
-    //blanstatus = networkManager->isOnline();
-    //DrawlanStatusUpdate(blanstatus);
-
 }
 
 void MainWindow::DrawlanStatusUpdate(bool isOnline)
@@ -413,7 +410,7 @@ void MainWindow::AudioPlayClicked(void)
 #ifdef OS_WINDOWS
     AudioPlayfileName = QFileDialog::getOpenFileName(this, "Open Audio File", "", "*.mp3 *.wav");
 #else
-    AudioPlayfileName = "/usr/bin/44.1k_2ch_16b_1k_90.wav";
+    AudioPlayfileName = "/usr/bin/audio_output.wav"; //44.1k_2ch_16b_1k_90.wav
 #endif
     emit AudioPlayClickedSignal(&AudioPlayfileName);
 }
@@ -425,19 +422,19 @@ void MainWindow::AudioRecordDurationUpdate(qint64 duration)
     AudioRecordButton->setText(QString("Recorded %1 seconds").arg(duration / 1000) ) ;
 }
 
-void MainWindow::AudioPlayStatusUpdate(QMediaPlayer::State newState)
+void MainWindow::AudioPlayStatusUpdate(qint8 newState)
 {
-    //record time
+    //
     qDebug() << "AudioPlayStatus:"<< newState;
-    if(newState == QMediaPlayer::PlayingState)
-        AudioPlayButton->setText(QString("Playing")) ;
+    if(newState == 1) // 1:QMediaPlayer::PlayingState
+        AudioPlayButton->setText(QString("Playing"));
 }
 
-void MainWindow::AudioPlayMediaStatusUpdate(QMediaPlayer::MediaStatus newState)
+void MainWindow::AudioPlayMediaStatusUpdate(qint8 newState)
 {
     //record time
     qDebug() << "AudioPlayMediaStatus:"<< newState;
-    if(newState == QMediaPlayer::EndOfMedia)
+    if(newState == 7)  // 7: QMediaPlayer::EndOfMedia
         AudioPlayButton->setText(QString("PlayDone")) ;
 }
 
