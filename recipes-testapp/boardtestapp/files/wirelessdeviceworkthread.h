@@ -16,6 +16,7 @@ public:
     ~WirelessDeviceWorkThread();
     void run() override;
 
+    void stop();
 signals:
     void RefreshWifiOSD(const QStringList& wifiList);
     void RefreshBtOSD(const QStringList& btList);
@@ -24,6 +25,7 @@ private slots:
     void addBtDevice(const QBluetoothDeviceInfo &device);
     void BtscanFinished();
 private:
+    bool stopRequested;
     QStringList wifiList;
     QStringList btList;
     QBluetoothDeviceDiscoveryAgent *discoveryAgent;

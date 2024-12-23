@@ -24,10 +24,12 @@ public:
     ~OpenCVCameraThread();
     void run() override;
 
+    void stop();
 signals:
     void frameProcessed(int id,const QImage &image);
 
 private:
+    bool stopRequested;
     QImage Mat2QImage(Mat cvImg);
 
 };

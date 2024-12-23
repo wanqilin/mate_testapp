@@ -34,7 +34,6 @@ private:
     GstElement *Recordpipeline;
 #endif
 
-
 public slots:
     void recordAudio(QString *sAudiofileName);
     void playAudio(QString *sAudiofileName);
@@ -49,6 +48,8 @@ private slots:
     void onDurationChanged(qint64 duration);
     void onStateChanged();
     void onMediaStateChanged();
-    void RecordedDuration();    
+#if OS_UNIX
+    void RecordedDuration();
+#endif
 };
 #endif // OSDEVENTWORK_H

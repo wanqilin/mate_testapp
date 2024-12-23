@@ -69,7 +69,7 @@ void OsdEventWork::onMediaStateChanged(void)
 {
     #ifdef OS_WINDOWS
     qDebug() << "audioplayer onMediaStateChanged" << audioplayer->mediaStatus();
-    emit RefreshMediaPlayStatus((std::byte)audioplayer->mediaStatus());
+    emit RefreshMediaPlayStatus((qint8)audioplayer->mediaStatus());
     #endif
 }
 

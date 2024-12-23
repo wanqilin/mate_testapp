@@ -28,16 +28,19 @@ public:
     ~HotPlugWorkThread();
     void run() override;
 
+    void stop();
 signals:
     void RefreshUsbOSD(const int usbCnt);
     void RefreshEthOSD(const bool bEthStatus);
 
 private:
+    bool stopRequested;
+    int usbCnt;
     int getUSBDeviceCount();
 #ifdef OS_UNIX
     bool isUsbStorage(const std::string &devicePath);
 #endif
-    int usbCnt;
+
     void getEthernetStatus();
 };
 #endif // HOTPLUGWORKTHREAD_H

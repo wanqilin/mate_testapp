@@ -8,9 +8,21 @@
 #include <vector>
 
 
-OpenCVCameraThread::OpenCVCameraThread(QObject *parent) : QThread(parent){}
+OpenCVCameraThread::OpenCVCameraThread(QObject *parent) : QThread(parent)
+{
+    stopRequested = false;
+}
 
-OpenCVCameraThread::~OpenCVCameraThread() {}
+OpenCVCameraThread::~OpenCVCameraThread() 
+{
+    stopRequested = false;
+}
+
+void OpenCVCameraThread::stop()
+{
+    qDebug()<<"OpenCVCameraThread to stop!";
+    stopRequested = true;
+}
 
 void OpenCVCameraThread::run()
 {
@@ -40,7 +52,7 @@ void OpenCVCameraThread::run()
     vector<Rect> facesPos;
 
 
-    while(v.read(src))
+    while((!stopRequested)&&(v.read(src)))
     {
         /*
         flip(src, src, 1);

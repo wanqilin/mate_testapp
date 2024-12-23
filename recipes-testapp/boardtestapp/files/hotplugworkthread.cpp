@@ -14,13 +14,26 @@ DEFINE_GUID(GUID_DEVINTERFACE_DISK,
 #endif
 
 
-HotPlugWorkThread::HotPlugWorkThread() {}
-HotPlugWorkThread::~HotPlugWorkThread() {}
+HotPlugWorkThread::HotPlugWorkThread()
+{
+    stopRequested = false;
+}
+
+HotPlugWorkThread::~HotPlugWorkThread() 
+{
+    stopRequested = false;
+}
+
+void HotPlugWorkThread::stop()
+{
+    qDebug()<<"HotPlugWorkThread to stop!";
+    stopRequested = true;
+}
 
 void HotPlugWorkThread::run()
 {
     qDebug()<<"HotPlugWorkThread is run!";
-    while(!isInterruptionRequested())
+    while(!stopRequested)
     {
         usbCnt = getUSBDeviceCount();
             emit RefreshUsbOSD(usbCnt);
@@ -56,7 +69,7 @@ int HotPlugWorkThread::getUSBDeviceCount() {
     for (int i = 0; SetupDiEnumDeviceInfo(deviceInfoSet, i, &deviceInfoData); i++) {
         if (SetupDiGetDeviceRegistryProperty(deviceInfoSet, &deviceInfoData, SPDRP_DEVICEDESC, &dataType, (PBYTE)buffer, bufferSize, nullptr))
         {
-            qDebug() << "Device Description: "<< QString::fromWCharArray(buffer);
+            ;//qDebug() << "Device Description: "<< QString::fromWCharArray(buffer);
         }
         deviceCount++;
     }
@@ -68,7 +81,7 @@ int HotPlugWorkThread::getUSBDeviceCount() {
 #endif
 #ifdef OS_UNIX
 bool HotPlugWorkThread::isUsbStorage(const std::string& devicePath) {
-std::string ueventPath = "/sys/class/block/" + devicePath + "/device/uevent";    
+std::string ueventPath = "/sys/class/block/" + devicePath + "/device/uevent";
     FILE* file = fopen(ueventPath.c_str(), "r");
     if (file) {
         char line[256];

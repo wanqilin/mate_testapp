@@ -2,7 +2,6 @@ DESCRIPTION = "My custom application"
 LICENSE = "CLOSED"
 SRC_URI = "file://boardtestapp.pro \
            file://boardtestapp.service \
-           file://sshd.service \
            file://sw_app_config.h \
            file://OpenCVWindow.h \
            file://opencvcamerathread.h \
@@ -20,27 +19,16 @@ SRC_URI = "file://boardtestapp.pro \
 
 DEPENDS += "qtbase qtdeclarative qtmultimedia qtconnectivity opencv gstreamer1.0"
 
-inherit qmake5
-# systemd
+inherit qmake5 systemd
 
 S = "${WORKDIR}"
 
 do_install() {
     install -d ${D}${bindir}
-    # install -d ${D}${systemd_system_unitdir}
+    install -d ${D}${systemd_system_unitdir}
     install -m 0755 boardtestapp ${D}${bindir}
-    # install -m 0755 ${WORKDIR}/boardtestapp.service ${D}${systemd_system_unitdir}
-    # install -m 0755 ${WORKDIR}/sshd.service ${D}${systemd_unitdir}/system/
+    install -m 0755 ${WORKDIR}/boardtestapp.service ${D}${systemd_system_unitdir}
 }
 
-# SYSTEMD_SERVICE:${PN} = "boardtestapp.service"
-# SYSTEMD_SERVICE = "sshd.service"
-# SYSTEMD_AUTO_ENABLE = "enable"
-
-# start sshd service
-# pkg_postinst_ontarget:${PN} () {
-#    if [ -x /bin/systemctl ]; then
-#        /bin/systemctl enable sshd.service
-#        /bin/systemctl start sshd.service
-#    fi
-# }
+SYSTEMD_SERVICE:${PN} = "boardtestapp.service"
+SYSTEMD_AUTO_ENABLE = "enable"

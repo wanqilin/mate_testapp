@@ -50,6 +50,7 @@ signals:
     void AudioRecordClickedSignal(QString *sAudiofileName);
     void AudioStopClickedSignal(void);
     void AudioPlayClickedSignal(QString *sAudiofileName);
+    void DemoAppLicLimit(void);
 
 private slots:
     void PrintText(const QString &text);
@@ -67,7 +68,12 @@ private slots:
     void AudioPlayStatusUpdate(qint8 newState);
     void AudioPlayMediaStatusUpdate(qint8 newState);
     void btListUpdate(const QStringList &btList);
+#if(APP_LIC_TYPE==0)
+    void AppLicLimitshowInfo();
+#endif
+    void AppExit();
 private:
+    qint8  AppLicCnt;
     QString AudioRecordfileName;
     QString AudioPlayfileName;
     QPushButton *captureButton;
@@ -80,6 +86,7 @@ private:
     QListWidget *BtlistWidget;
     QLabel *displayTitle;
     QTimer *m_timer;
+    QTimer *AppExittimer;
     QCamera *camera;
     QCameraViewfinder *viewfinder;
     QCameraImageCapture *imageCapture;
@@ -112,5 +119,10 @@ private:
     void DrawAudioPage();
     void DrawBtPage();
     void DrawEventListenPage();
+#if(APP_LIC_TYPE==0)
+    void saveData(int value);
+    int loadData();
+#endif
+    void AppLicCheck();
 };
 #endif // MAINWINDOW_H
