@@ -54,7 +54,6 @@ void OpenCVCameraThread::run()
 
     while((!stopRequested)&&(v.read(src)))
     {
-        /*
         flip(src, src, 1);
         cvtColor(src, gray, cv::COLOR_BGR2GRAY);
         equalizeHist(gray, dst);
@@ -64,7 +63,7 @@ void OpenCVCameraThread::run()
         {
             rectangle(src, facesPos[i], Scalar(0,0,255), 2);
         }
-        */
+
         QImage qimg = Mat2QImage(src);
         emit frameProcessed(0x1,qimg);
         QThread::msleep(30);

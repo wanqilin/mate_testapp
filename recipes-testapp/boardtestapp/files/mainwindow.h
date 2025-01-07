@@ -101,9 +101,11 @@ private:
     QGroupBox *appbox;
     QGroupBox *lanbox;
     QGroupBox *usbbox;
+    QGroupBox *CameraGroupBox;
     QBoxLayout *applayout;
     QHBoxLayout *usblayout;
     QVBoxLayout *Audiolayout;
+    QVBoxLayout *Cameralayout;
     //OpenCVWindow *pOpenCVWindow;
     OpenCVCameraThread *pOpenCVCameraThread;
     WirelessDeviceWorkThread *pWirelessDeviceWorkThread;

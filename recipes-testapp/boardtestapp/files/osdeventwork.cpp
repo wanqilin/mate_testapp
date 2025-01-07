@@ -195,8 +195,8 @@ void OsdEventWork::stopRecording(void)
     #if OS_UNIX
     if (AudioRecordtimer)
     {
-        AudioRecordtimer->stop();    // 停止定时器
-        //delete AudioRecordtimer;   // 删除定时器
+        AudioRecordtimer->stop();
+        //delete AudioRecordtimer;
     }    
     if (Recordpipeline)
     {

@@ -231,9 +231,9 @@ void MainWindow::ClockUpdate(void)
 }
 void MainWindow::DrawCameraPage(void)
 {
-    QGroupBox *CameraGroupBox = new QGroupBox("Camera",this);
-    CameraGroupBox->setGeometry(720,20,560,445);
-    QVBoxLayout *Cameralayout = new QVBoxLayout(this);
+    CameraGroupBox = new QGroupBox("Camera",this);
+    CameraGroupBox->setGeometry(700,20,580,460);
+    Cameralayout = new QVBoxLayout(this);
 
     QPalette palette;
     palette.setColor(QPalette::Window,QColor(50, 50, 50));
