@@ -90,6 +90,8 @@ private:
     QCamera *camera;
     QCameraViewfinder *viewfinder;
     QCameraImageCapture *imageCapture;
+    QVideoWidget *CameraViewVideoFrame;
+    QMediaPlayer *mediaPlayer;    
     QLabel *CameraView;
     QLabel *MatchImage;
     QLabel *lanstatus;

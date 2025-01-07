@@ -33,10 +33,11 @@ MainWindow::MainWindow(QWidget *parent)
 
     pHotPlugWorkThread = new HotPlugWorkThread();
     pHotPlugWorkThread->start();
-
+#if(CAMERA_MODE_TYPE == 1)
+#else
     pOpenCVCameraThread = new OpenCVCameraThread();
     pOpenCVCameraThread->start();
-
+#endif
     SetSignalAndSLot();
     AppLicCheck();
 }
@@ -66,12 +67,13 @@ MainWindow::~MainWindow()
     pHotPlugWorkThread->quit();
     pHotPlugWorkThread->wait();
     pHotPlugWorkThread->deleteLater();
-
+#if(CAMERA_MODE_TYPE == 1)
+#else
     pOpenCVCameraThread->stop();
     pOpenCVCameraThread->quit();
     pOpenCVCameraThread->wait();
     pOpenCVCameraThread->deleteLater();
-
+#endif
     pOsdEventWork->deleteLater();
     pOsdEventThread->quit();
     pOsdEventThread->wait();
@@ -173,8 +175,12 @@ void MainWindow::SetSignalAndSLot(void)
 #if(APP_LIC_TYPE==0)
     connect(this,&MainWindow::DemoAppLicLimit,this,&MainWindow::AppLicLimitshowInfo);
 #endif
+
+#if(CAMERA_MODE_TYPE == 1)
+#else
     //opencv slot
     connect(pOpenCVCameraThread,&OpenCVCameraThread::frameProcessed,this,&MainWindow::displayImage);
+#endif
     //wifi slot
     connect(pWirelessDeviceWorkThread, &WirelessDeviceWorkThread::RefreshWifiOSD, this, &MainWindow::wifiListUpdate);
     //Bt slot
@@ -233,13 +239,18 @@ void MainWindow::DrawCameraPage(void)
     palette.setColor(QPalette::Window,QColor(50, 50, 50));
     palette.setColor(QPalette::WindowText, Qt::white);
     //Camera View
+    #if(CAMERA_MODE_TYPE == 1)
+    CameraViewVideoFrame = new QVideoWidget(this);
+    CameraViewVideoFrame->setFixedSize(560,420);
+    CameraViewVideoFrame->setAutoFillBackground(true);
+    #else
     CameraView = new QLabel("No Data!",this);
     CameraView->setPalette(palette);
     CameraView->setFixedSize(540,405);
     CameraView->setAutoFillBackground(true);
     CameraView->setPalette(palette);
     CameraView->setAlignment(Qt::AlignCenter);
-
+    #endif
     //MatchImage
     /*
     MatchImage = new QLabel("No Data!",this);
@@ -258,8 +269,11 @@ void MainWindow::DrawCameraPage(void)
     //OpenCVButton = new QPushButton("GotoOpenCV",this);
     //OpenCVButton->resize(180,50);
     //connect(OpenCVButton,&QPushButton::clicked,this,&MainWindow::GotoOpenCVWindow);
-
+#if(CAMERA_MODE_TYPE == 1)
+    Cameralayout->addWidget(CameraViewVideoFrame);
+#else
     Cameralayout->addWidget(CameraView);
+#endif
     //Cameralayout->addWidget(MatchImage);
     //Cameralayout->addWidget(captureButton);
     //Cameralayout->addWidget(OpenCVButton);
@@ -270,9 +284,12 @@ void MainWindow::DrawCameraPage(void)
     //appbox->setLayout(applayout);
 
     //startOpenCVfaceRecognition
-    //CameraInit();
+#if(CAMERA_MODE_TYPE == 1)    
+    CameraInit();
+#endif    
 }
 
+#if(CAMERA_MODE_TYPE == 1)  
 void MainWindow::CameraInit(void)
 {
     const QList<QCameraInfo> cameras = QCameraInfo::availableCameras();
@@ -286,10 +303,10 @@ void MainWindow::CameraInit(void)
         QPalette palette;
         palette.setColor(QPalette::Window,QColor(50, 50, 50));
         //Creat Viewfinder
-        viewfinder = new QCameraViewfinder(this);
-        viewfinder->setFixedSize(320,240);
-        viewfinder->setAutoFillBackground(true);
-        viewfinder->setPalette(palette);
+        //viewfinder = new QCameraViewfinder(this);
+        //viewfinder->setFixedSize(320,240);
+        //viewfinder->setAutoFillBackground(true);
+        //viewfinder->setPalette(palette);
         //Cameralayout->addWidget(viewfinder);
         //CameraGroupBox->setLayout(Cameralayout);
         
@@ -300,12 +317,12 @@ void MainWindow::CameraInit(void)
         camera->setViewfinderSettings(viewfinderSettings);
 
         //camer connect Viewfinder
-        camera->setViewfinder(viewfinder);
+        camera->setViewfinder(CameraViewVideoFrame);
 
         //Creat ImageCapture Object
-        imageCapture = new QCameraImageCapture(camera, this);
-        connect(captureButton,&QPushButton::clicked,this,&MainWindow::captureImage);
-        connect(imageCapture, &QCameraImageCapture::imageCaptured, this, &MainWindow::displayImage);
+        //imageCapture = new QCameraImageCapture(camera, this);
+        //connect(captureButton,&QPushButton::clicked,this,&MainWindow::captureImage);
+        //connect(imageCapture, &QCameraImageCapture::imageCaptured, this, &MainWindow::displayImage);
         camera->start();
     }
     else
@@ -314,6 +331,7 @@ void MainWindow::CameraInit(void)
         CameraView->setText("No camera available.");
     }
 }
+#endif
 
 void MainWindow::captureImage() {
     // CaptureImage
