@@ -25,8 +25,9 @@ S = "${WORKDIR}"
 
 do_install() {
     install -d ${D}${bindir}
-    install -d ${D}${systemd_system_unitdir}
     install -m 0755 boardtestapp ${D}${bindir}
+
+    install -d ${D}${systemd_system_unitdir}
     install -m 0755 ${WORKDIR}/boardtestapp.service ${D}${systemd_system_unitdir}
 }
 

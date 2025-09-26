@@ -3,15 +3,12 @@
 #include <QThread>
 #include <QProcess>
 
+
 WirelessDeviceWorkThread::WirelessDeviceWorkThread()
 {
     stopRequested = false;
-    discoveryAgent = new QBluetoothDeviceDiscoveryAgent(this);
-    connect(discoveryAgent, &QBluetoothDeviceDiscoveryAgent::deviceDiscovered,
-            this, &WirelessDeviceWorkThread::addBtDevice);
-    connect(discoveryAgent, &QBluetoothDeviceDiscoveryAgent::finished,
-            this, &WirelessDeviceWorkThread::BtscanFinished);
-    discoveryAgent->start();
+
+    checkBluetoothReady();
 }
 
 WirelessDeviceWorkThread::~WirelessDeviceWorkThread() 
@@ -86,4 +83,48 @@ void WirelessDeviceWorkThread::addBtDevice(const QBluetoothDeviceInfo &device) {
 void WirelessDeviceWorkThread::BtscanFinished() {
     qDebug() << "Scan completed!";
     emit RefreshBtOSD(btList);
+}
+
+void WirelessDeviceWorkThread::discoveryError(QBluetoothDeviceDiscoveryAgent::Error error)
+{
+    qWarning() << "Discovery error:" << discoveryAgent->errorString();
+}
+
+void WirelessDeviceWorkThread::startDiscovery()
+{
+    if (!discoveryAgent) {
+        discoveryAgent = new QBluetoothDeviceDiscoveryAgent(this);
+        connect(discoveryAgent, &QBluetoothDeviceDiscoveryAgent::deviceDiscovered,
+                this, &WirelessDeviceWorkThread::addBtDevice);
+        connect(discoveryAgent, &QBluetoothDeviceDiscoveryAgent::finished,
+                this, &WirelessDeviceWorkThread::BtscanFinished);
+        connect(discoveryAgent, QOverload<QBluetoothDeviceDiscoveryAgent::Error>::of(&QBluetoothDeviceDiscoveryAgent::error),
+                this, &WirelessDeviceWorkThread::discoveryError);   
+    }
+    qDebug()<<"BT startDiscovery!!";
+    discoveryAgent->start();
+}
+
+void WirelessDeviceWorkThread::checkBluetoothReady()
+{
+    static int retryCount = 0;
+
+    // 最大重试10次，每次间隔2秒
+    if (retryCount++ > 10) {
+        qFatal("Bluetooth initialization failed after 10 retries");
+        return;
+    }
+
+    // 综合检测条件
+    bool isReady = QFile::exists("/sys/class/bluetooth/hci0") && 
+                  QBluetoothLocalDevice().isValid() &&
+                  (QBluetoothLocalDevice().hostMode() != QBluetoothLocalDevice::HostPoweredOff);
+
+    if (isReady) {
+        qDebug() << "Bluetooth fully initialized";
+        startDiscovery();
+    } else {
+        qDebug() << "Bluetooth not ready, retrying..." << retryCount;
+        QTimer::singleShot(2000, this, &WirelessDeviceWorkThread::checkBluetoothReady);
+    }
 }

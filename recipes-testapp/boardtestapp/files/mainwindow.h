@@ -120,6 +120,8 @@ private:
     void DrawWifiPage();
     void DrawCameraPage();
     void InitVariable();
+    void InitHWDevice();
+    void InitBTDevice();
     void DrawAudioPage();
     void DrawBtPage();
     void DrawEventListenPage();

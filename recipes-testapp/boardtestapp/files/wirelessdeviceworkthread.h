@@ -3,9 +3,12 @@
 
 #include <QObject>
 #include <QThread>
+#include <QTimer>
+#include <QFile>  
 #include <QRegularExpression>
 #include <QBluetoothDeviceDiscoveryAgent>
 #include <QBluetoothDeviceInfo>
+#include <QBluetoothLocalDevice>
 
 class WirelessDeviceWorkThread : public QThread
 {
@@ -24,12 +27,15 @@ signals:
 private slots:
     void addBtDevice(const QBluetoothDeviceInfo &device);
     void BtscanFinished();
+    void discoveryError(QBluetoothDeviceDiscoveryAgent::Error error);
+    void checkBluetoothReady();
 private:
     bool stopRequested;
     QStringList wifiList;
     QStringList btList;
-    QBluetoothDeviceDiscoveryAgent *discoveryAgent;
+    QBluetoothDeviceDiscoveryAgent *discoveryAgent = nullptr;
 
     QStringList getWifiList();
+    void startDiscovery();
 };
 #endif // WIRELESSDEVICEWORKTHREAD_H

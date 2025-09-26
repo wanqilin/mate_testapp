@@ -20,6 +20,7 @@ MainWindow::MainWindow(QWidget *parent)
     this->setGeometry(0,0,APP_WIDTH,APP_HEIGH);
 
     InitVariable();
+    InitHWDevice();
 
     DrawOSDInterface();
 
@@ -121,6 +122,69 @@ void MainWindow::AppLicCheck(void)
         emit DemoAppLicLimit();
 #endif
 }
+
+QPair<QString, QString> executeCommand(const QString& cmd, const QStringList& args = {})
+ {
+    QProcess process;
+    process.setProcessChannelMode(QProcess::MergedChannels);
+    process.start(cmd, args);
+    
+    if (!process.waitForStarted(3000)) {
+        return qMakePair(QString(), QString("Failed to start process"));
+    }
+    
+    if (!process.waitForFinished(5000)) {
+        return qMakePair(QString(), QString("Process execution timed out"));
+    }
+    
+    const int exitCode = process.exitCode();
+    const QByteArray output = process.readAllStandardOutput();
+    
+    return exitCode == 0 
+        ? qMakePair(QString::fromLocal8Bit(output), QString())
+        : qMakePair(QString::fromLocal8Bit(output), 
+                   QString("Exited with code %1").arg(exitCode));
+}
+
+void MainWindow::InitBTDevice(void)
+{
+    // 1. Start rtk_hciattach
+    QProcess bgProcess;
+    bgProcess.start("/bin/sh", {"-c", "rtk_hciattach -n -s 115200 ttymxc0 rtk_h5 &"});
+    if (!bgProcess.waitForFinished(2000)) {
+        qDebug() << "Failed to start background process";
+        return ;
+    }
+
+    // wait Device init
+    QThread::sleep(3);
+  
+    // 2. Enabel BT Interface
+    auto upResult = executeCommand("hciconfig", {"hci0", "up"});
+    if (!upResult.second.isEmpty()) {
+        qDebug() << "En hci0 fail:" << upResult.second;
+        qDebug() << "hci0 up->> Output:" << upResult.first;
+        return ;
+    }
+    
+    qDebug() << "hci0 up->> Output:" << upResult.first;
+
+    // 3. Get BT Info
+    auto infoResult = executeCommand("hciconfig", {"-a"});
+    if (!infoResult.second.isEmpty()) {
+        qDebug() << "Get Bt info fail:" << infoResult.second;
+        qDebug() << "hciconfig->Output:" << infoResult.first;
+        return ;
+    }
+    qDebug() << "BTConfigInfo :\n" << infoResult.first;   
+
+}
+
+void MainWindow::InitHWDevice(void)
+{
+    InitBTDevice();
+}
+
 void MainWindow::InitVariable(void)
 {
 #if(APP_LIC_TYPE==0)
